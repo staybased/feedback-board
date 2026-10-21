@@ -1,0 +1,6 @@
+node_modules/
+test-results/
+playwright-report/
+tests/fixtures/out/
+tests/fixtures/cache/
+.DS_Store

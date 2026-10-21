@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Feedback board demo</title>
+  <style>
+    :root {
+      --page-bg: #fafaf8; --page-text: #16171a; --page-muted: #5d5f66; --page-border: #e3e3df; --page-card: #ffffff;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --page-bg: #0e0f11; --page-text: #ececee; --page-muted: #a2a4ac; --page-border: #2c2d33; --page-card: #16171a;
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --page-bg: #0e0f11; --page-text: #ececee; --page-muted: #a2a4ac; --page-border: #2c2d33; --page-card: #16171a;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh; background: var(--page-bg); color: var(--page-text);
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { max-width: 640px; margin: 0 auto; padding: 56px 16px 120px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 6vw, 40px); line-height: 1.1; letter-spacing: -0.02em; }
+    p { margin: 0 0 16px; color: var(--page-muted); }
+    code { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    fieldset { margin: 24px 0 0; padding: 16px; border: 1px solid var(--page-border); border-radius: 12px; background: var(--page-card); }
+    legend { padding: 0 6px; font-size: 13px; font-weight: 700; }
+    .options { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+    .open-board { margin-top: 24px; height: 44px; padding: 0 18px; border: 1px solid var(--page-border); border-radius: 10px; background: var(--page-card); color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+    .open-board:hover { border-color: var(--page-muted); }
+    :focus-visible { outline: 2px solid #3451f5; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Feedback board demo</h1>
+    <p>The button in the corner opens the board. Data lives in memory, so a reload resets it.</p>
+    <p>Switch who is visiting to see each gate: signed-out visitors can read and post, members can vote, and on a token-gated board only holders can vote.</p>
+
+    <fieldset>
+      <legend>Visitor</legend>
+      <div class="options" id="viewer">
+        <label><input type="radio" name="viewer" value="signed-out"> Signed out</label>
+        <label><input type="radio" name="viewer" value="member"> Member</label>
+        <label><input type="radio" name="viewer" value="holder" checked> Holder</label>
+        <label><input type="radio" name="viewer" value="non-holder"> Wallet, no token</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Theme</legend>
+      <div class="options" id="theme">
+        <label><input type="radio" name="theme" value="auto" checked> System</label>
+        <label><input type="radio" name="theme" value="light"> Light</label>
+        <label><input type="radio" name="theme" value="dark"> Dark</label>
+      </div>
+    </fieldset>
+
+    <button class="open-board" type="button" id="open">Open the board</button>
+  </main>
+
+  <feedback-board sign-in-url="#sign-in" gate-note="Voting is for holders. Connect a wallet that holds one."></feedback-board>
+
+  <script type="module">
+    import { defineFeedbackBoard } from './feedback-board.js';
+    import { memoryAdapter } from './memory-adapter.js';
+
+    const VIEWERS = {
+      'signed-out': { id: null },
+      member: { id: 'member-1', eligible: true },
+      holder: { id: '0xholder', eligible: true },
+      'non-holder': { id: '0xvisitor', eligible: false },
+    };
+
+    const params = new URLSearchParams(location.search);
+    let viewer = VIEWERS[params.get('viewer')] ?? VIEWERS.holder;
+    document.querySelector(`#viewer input[value="${params.get('viewer') ?? 'holder'}"]`)?.click();
+
+    const seed = params.has('empty') ? [] : [
+      { kind: 'feature', title: 'Dark mode', body: 'The app is hard to use at night.', status: 'shipped', adminNote: 'Shipped in 1.4. Follows your system setting.', up: 31, down: 1 },
+      { kind: 'bug', title: 'Login link expires before the email arrives', body: 'The magic link says expired when I open it about 10 minutes later.', status: 'in_progress', adminNote: 'Links now last 30 minutes. Rolling out this week.', up: 18 },
+      { kind: 'feature', title: 'Export my data to CSV', status: 'planned', up: 12, down: 2 },
+      { kind: 'bug', title: 'Menu covers the search bar on small phones', body: 'On an iPhone SE the open menu hides the search field, so you cannot search without closing it first. It happens in portrait only. Landscape is fine. Steps: open the menu, tap search, nothing happens because the field is under the menu panel.', up: 7 },
+      { kind: 'feature', title: 'Keyboard shortcuts', up: 4, down: 1 },
+      { kind: 'feature', title: 'Weekly email digest', status: 'declined', adminNote: 'Not planned. We would rather not add more email.', up: 3, down: 6 },
+    ];
+
+    defineFeedbackBoard();
+    const board = document.querySelector('feedback-board');
+    const adapter = memoryAdapter({ seed, viewer: () => viewer, latencyMs: Number(params.get('latency') ?? 150) });
+    board.adapter = adapter;
+
+    document.getElementById('viewer').addEventListener('change', (event) => {
+      viewer = VIEWERS[event.target.value];
+      board.refresh();
+    });
+    document.getElementById('theme').addEventListener('change', (event) => {
+      const theme = event.target.value;
+      if (theme === 'auto') {
+        board.removeAttribute('theme');
+        delete document.documentElement.dataset.theme;
+      } else {
+        board.setAttribute('theme', theme);
+        document.documentElement.dataset.theme = theme;
+      }
+    });
+    document.getElementById('open').addEventListener('click', () => board.open());
+
+    window.feedbackDemo = { board, adapter, setViewer: (key) => { viewer = VIEWERS[key]; } };
+  </script>
+</body>
+</html>

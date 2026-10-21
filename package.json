@@ -1,0 +1,19 @@
+{
+  "name": "feedback-board",
+  "private": true,
+  "description": "A small community feedback board for any website, with optional token gating. Spec + reference code.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "demo": "node tests/serve.mjs",
+    "test": "npm run test:sql && npm run test:token && npm run test:widget",
+    "test:sql": "bash tests/sql/run.sh",
+    "test:token": "node --test tests/token-gate.test.mjs",
+    "test:widget": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
+    "viem": "2.57.8"
+  }
+}
